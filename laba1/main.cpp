@@ -74,8 +74,8 @@ void makeConvolution(const unsigned char *in, unsigned char *outBytes, const int
 
 int main() {
     std::string imageName = "image4.jpg";
-    auto inPath = std::string("resources/") + imageName;
-    auto outPath = std::string("output/") + imageName;
+    auto inPath = std::string("../resources/") + imageName;
+    auto outPath = std::string("../output/") + imageName;
     int channels = 3;
 
     int width;
