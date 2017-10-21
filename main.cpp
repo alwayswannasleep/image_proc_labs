@@ -2,18 +2,78 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
-unsigned char modulateColorValue(const unsigned char &value) {
+unsigned char modulateColorValue(const int &value) {
     if (value < 0) {
         return 0;
     } else if (value > 255) {
         return 255;
     }
 
-    return value;
+    return static_cast<unsigned char>(value);
+}
+
+void makeConvolution(const unsigned char *in, unsigned char *outBytes, const int &width, const int &height,
+                     const int &channels, const int *kernel, const int &kernelWidth, const int &kernelHeight) {
+    auto maskWidthStartPos = -(kernelWidth - 1) / 2;
+    auto maskWidthEndPos = (kernelWidth - 1) / 2;
+    auto maskHeightStartPos = -(kernelHeight - 1) / 2;
+    auto maskHeightEndPos = (kernelHeight - 1) / 2;
+
+    auto maskSum = 0;
+
+    for (int i = 0; i < 9; i++) {
+        maskSum += kernel[i];
+    }
+
+    if (maskSum <= 0) {
+        maskSum = 1;
+    }
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            int pixelPosition = j + (i * width);
+            int startPixelIndex = channels * pixelPosition;
+
+            unsigned char r = in[startPixelIndex + 0];
+            unsigned char g = in[startPixelIndex + 1];
+            unsigned char b = in[startPixelIndex + 2];
+
+            if ((i + maskHeightStartPos) >= 0
+                && (j + maskWidthStartPos) >= 0
+                && i < (height - maskHeightEndPos)
+                && j < (width - maskWidthEndPos)) {
+
+                int rSum = 0;
+                int gSum = 0;
+                int bSum = 0;
+
+                for (int k = 0; k < kernelHeight; k++) {
+                    for (int m = 0; m < kernelWidth; m++) {
+                        auto maskIndex = m + (k * kernelWidth);
+                        auto row = (i + maskHeightStartPos + k);
+                        auto column = (j + maskWidthStartPos + m);
+                        auto position = column + (row * width);
+
+                        rSum += in[channels * position + 0] * kernel[maskIndex];
+                        gSum += in[channels * position + 1] * kernel[maskIndex];
+                        bSum += in[channels * position + 2] * kernel[maskIndex];
+                    }
+                }
+
+                r = modulateColorValue(rSum / maskSum);
+                g = modulateColorValue(gSum / maskSum);
+                b = modulateColorValue(bSum / maskSum);
+            }
+
+            outBytes[startPixelIndex + 0] = r;
+            outBytes[startPixelIndex + 1] = g;
+            outBytes[startPixelIndex + 2] = b;
+        }
+    }
 }
 
 int main() {
-    std::string imageName = "image1.jpg";
+    std::string imageName = "image3.jpg";
     auto inPath = std::string("resources/") + imageName;
     auto outPath = std::string("output/") + imageName;
     int channels = 3;
@@ -29,71 +89,16 @@ int main() {
 
     std::cout << "Width: " << width << " height: " << height << std::endl;
 
-    auto outBytes = new unsigned char[width * height * channels];
-
     auto maskWidth = 3;
     auto maskHeight = 3;
-    auto maskWidthStartPos = -(maskWidth - 1) / 2;
-    auto maskWidthEndPos = (maskWidth - 1) / 2;
-    auto maskHeightStartPos = -(maskHeight - 1) / 2;
-    auto maskHeightEndPos = (maskHeight - 1) / 2;
-
-    auto imageMask = new int[maskWidth * maskHeight]{
-            1, 0, -1,
-            2, 0, -2,
-            1, 0, -1
+    auto imageMask1 = new int[maskWidth * maskHeight]{
+            0, -1, 0,
+            -1, 4, -1,
+            0, -1, 0
     };
-    auto maskSum = 0;
 
-    for (int i = 0; i < 9; i++) {
-        maskSum += imageMask[i];
-    }
-
-    if (maskSum <= 0) {
-        maskSum = 1;
-    }
-
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-            int pixelPosition = j + (i * width);
-            int startPixelIndex = channels * pixelPosition;
-
-            unsigned char r = bytes[startPixelIndex + 0];
-            unsigned char g = bytes[startPixelIndex + 1];
-            unsigned char b = bytes[startPixelIndex + 2];
-
-            if ((i + maskHeightStartPos) >= 0
-                && (j + maskWidthStartPos) >= 0
-                && i < (height - maskHeightEndPos)
-                && j < (width - maskWidthEndPos)) {
-
-                int rSum = 0;
-                int gSum = 0;
-                int bSum = 0;
-
-                for (int k = 0; k < maskHeight; k++) {
-                    for (int m = 0; m < maskWidth; m++) {
-                        auto maskIndex = m + (k * maskWidth);
-                        auto row = (i + maskHeightStartPos + k);
-                        auto column = (j + maskWidthStartPos + m);
-                        auto position = column + (row * width);
-
-                        rSum += bytes[channels * position + 0] * imageMask[maskIndex];
-                        gSum += bytes[channels * position + 1] * imageMask[maskIndex];
-                        bSum += bytes[channels * position + 2] * imageMask[maskIndex];
-                    }
-                }
-
-                r = modulateColorValue(static_cast<unsigned char>(rSum / maskSum));
-                g = modulateColorValue(static_cast<unsigned char>(gSum / maskSum));
-                b = modulateColorValue(static_cast<unsigned char>(bSum / maskSum));
-            }
-
-            outBytes[startPixelIndex + 0] = r;
-            outBytes[startPixelIndex + 1] = g;
-            outBytes[startPixelIndex + 2] = b;
-        }
-    }
+    auto outBytes = new unsigned char[width * height * channels];
+    makeConvolution(bytes, outBytes, width, height, channels, imageMask1, maskWidth, maskHeight);
 
     auto result = stbi_write_jpg(outPath.c_str(), width, height, channels, outBytes, 85);
 
