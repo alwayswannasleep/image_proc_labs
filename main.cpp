@@ -73,7 +73,7 @@ void makeConvolution(const unsigned char *in, unsigned char *outBytes, const int
 }
 
 int main() {
-    std::string imageName = "image3.jpg";
+    std::string imageName = "image4.jpg";
     auto inPath = std::string("resources/") + imageName;
     auto outPath = std::string("output/") + imageName;
     int channels = 3;
@@ -91,14 +91,13 @@ int main() {
 
     auto maskWidth = 3;
     auto maskHeight = 3;
-    auto imageMask1 = new int[maskWidth * maskHeight]{
+    auto imageMask = new int[maskWidth * maskHeight]{
             0, -1, 0,
             -1, 4, -1,
             0, -1, 0
     };
-
     auto outBytes = new unsigned char[width * height * channels];
-    makeConvolution(bytes, outBytes, width, height, channels, imageMask1, maskWidth, maskHeight);
+    makeConvolution(bytes, outBytes, width, height, channels, imageMask, maskWidth, maskHeight);
 
     auto result = stbi_write_jpg(outPath.c_str(), width, height, channels, outBytes, 85);
 
